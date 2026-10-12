@@ -24,8 +24,10 @@ function Nav({ onNavigate, onLogout, active }){
 export default function App(){
   const [token, setToken] = useState(localStorage.getItem('mvfx_token'))
   const [view, setView] = useState('home')
+  const [mode, setMode] = useState(localStorage.getItem('mvfx_mode')||'demo')
 
   useEffect(() => { if (token) localStorage.setItem('mvfx_token', token); else localStorage.removeItem('mvfx_token'); }, [token])
+  useEffect(() => { localStorage.setItem('mvfx_mode', mode) }, [mode])
 
   if (!token) return <Auth onAuth={(t) => setToken(t)} />
 
@@ -36,11 +38,18 @@ export default function App(){
           <img src="/src/assets/mvfx-logo.svg" alt="MVFX" className="logo" />
           <div className="brand-text">MVFX</div>
         </div>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <div style={{fontSize:12,color:'#94a3b8'}}>Mode</div>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <button onClick={() => setMode('demo')} style={{background: mode==='demo' ? '#163a2b' : 'transparent', color: mode==='demo'?'#7ef5a6':'#94a3b8', padding:'6px 8px', borderRadius:8}}>DEMO</button>
+            <button onClick={() => setMode('live')} style={{background: mode==='live' ? '#2a1018' : 'transparent', color: mode==='live'?'#ff9b9b':'#94a3b8', padding:'6px 8px', borderRadius:8}}>LIVE</button>
+          </div>
+        </div>
         <Nav onNavigate={setView} onLogout={() => setToken(null)} active={view} />
       </header>
       <main className="main">
-        {view === 'trade' && <ChartView token={token} />}
-        {view === 'dashboard' && <Dashboard token={token} />}
+        {view === 'trade' && <ChartView token={token} mode={mode} />}
+        {view === 'dashboard' && <Dashboard token={token} mode={mode} />}
         {view === 'assistant' && <Assistant token={token} />}
         {view === 'live' && <LivePage token={token} />}
         {view === 'home' && (
@@ -51,7 +60,7 @@ export default function App(){
           </div>
         )}
       </main>
-      <footer className="footer">MVFX — demo platform. Live trading requires broker integration and compliance (see ARCHITECTURE.md)</footer>
+      <footer className="footer">MVFX — demo platform. Live trading requires broker integration and compliance (see LIVE_TRADING.md)</footer>
     </div>
   )
 }

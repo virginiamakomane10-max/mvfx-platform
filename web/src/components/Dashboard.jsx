@@ -3,12 +3,20 @@ import axios from 'axios'
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'
 
-export default function Dashboard({ token }){
+export default function Dashboard({ token, mode }){
   const [data, setData] = useState(null)
 
   useEffect(() => { fetchData(); const t = setInterval(fetchData, 2000); return () => clearInterval(t) }, [])
   async function fetchData(){
-    try{ const r = await axios.get(`${BACKEND}/api/demo/account`, { headers: { Authorization: `Bearer ${token}` } }); setData(r.data) }catch(e){ console.error(e) }
+    try{
+      if (mode === 'demo'){
+        const r = await axios.get(`${BACKEND}/api/demo/account`, { headers: { Authorization: `Bearer ${token}` } })
+        setData(r.data)
+      } else {
+        // Live account data would require broker APIs — show placeholder
+        setData({ account: { balance: 0, equity: 0 }, positions: [], history: [] })
+      }
+    }catch(e){ console.error(e) }
   }
 
   if (!data) return <div>Loading...</div>
@@ -16,7 +24,7 @@ export default function Dashboard({ token }){
   return (
     <div className="dashboard-grid">
       <div className="card balance">
-        <h3>Demo Account</h3>
+        <h3>{mode === 'demo' ? 'Demo Account' : 'Live Account (disabled)'}</h3>
         <div className="val">Balance: <strong>{data.account.balance.toFixed(2)}</strong></div>
         <div className="val">Equity: <strong>{data.account.equity.toFixed(2)}</strong></div>
       </div>
