@@ -1,23 +1,58 @@
-body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin: 0; background: linear-gradient(180deg,#071224,#071224); color: #e6eef6 }
-.app { display: flex; flex-direction: column; min-height: 100vh }
-.topbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:#071827}
-.topbar .brand { font-weight:700; font-size:20px; color:#fff }
-.topbar nav button { margin-left:8px }
-.main { flex:1; padding:16px }
-.hero { text-align:center; padding:40px }
-.hero h1 { font-size:48px; color:#fff }
-.auth { display:flex; justify-content:center; align-items:center; height:100vh }
-.auth .card { background:#071827; padding:20px; border-radius:8px; min-width:320px }
-.auth input { display:block; width:100%; margin:8px 0; padding:8px }
-.trade-page { display:flex; gap:12px }
-.left-panel { width:220px; background:#071827; padding:12px; border-radius:8px }
-.chart-section { flex:1 }
-.chart { background:#071827; border-radius:8px; padding:8px }
-.ticket button { width:100%; padding:12px; margin-top:6px; font-weight:700 }
-.ticket .buy { background:#28a745; color:white }
-.ticket .sell { background:#dc3545; color:white }
-.dashboard { display:flex; gap:12px; flex-wrap:wrap }
-.card { background:#071827; padding:12px; border-radius:8px; min-width:220px }
-.assistant textarea { width:100%; height:80px }
-.footer { padding:12px; text-align:center; font-size:12px }
-@media(max-width:800px){ .trade-page{ flex-direction:column } .left-panel{ width:100% } }
+/* Styles updated for premium dark terminal look inspired by Binance/MT5 */
+:root{ --bg:#071827; --panel:#0b1220; --muted:#94a3b8; --accent:#28a745; --danger:#dc3545 }
+body{ margin:0; font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background:linear-gradient(180deg,var(--bg),#03101a); color:#cfe6ff }
+.app{ display:flex; flex-direction:column; min-height:100vh }
+.topbar{ display:flex; justify-content:space-between; align-items:center; padding:12px 18px; background:rgba(4,12,20,0.6); backdrop-filter:blur(6px); border-bottom:1px solid rgba(255,255,255,0.02) }
+.brand{ display:flex; align-items:center; gap:10px }
+.brand .logo{ width:36px; height:36px }
+.brand-text{ font-weight:700; font-size:18px }
+.nav button{ background:transparent; color:var(--muted); border:0; padding:8px 10px; margin-left:6px; border-radius:6px }
+.nav button.active{ color:#fff; background:rgba(255,255,255,0.03) }
+.main{ flex:1; padding:16px }
+.hero{ text-align:center; padding:40px }
+.hero h1{ font-size:44px; margin:0 }
+.footer{ padding:10px; text-align:center; font-size:12px; color:var(--muted) }
+
+/* Auth */
+.auth{ display:flex; justify-content:center; align-items:center; height:80vh }
+.auth .card{ background:var(--panel); padding:20px; border-radius:12px; min-width:320px; box-shadow:0 6px 24px rgba(2,6,12,0.6) }
+.auth input{ display:block; width:100%; margin:8px 0; padding:10px; background:#06101a; border:1px solid rgba(255,255,255,0.03); color:#eaf6ff }
+.auth button{ width:100%; padding:10px; margin-top:8px; background:var(--accent); color:#01120a; border:0; border-radius:8px }
+
+/* Trade layout */
+.trade-page{ display:flex; gap:12px }
+.left-panel{ width:320px; background:var(--panel); padding:12px; border-radius:8px; display:flex; flex-direction:column; gap:12px }
+.market-select label{ color:var(--muted); font-size:12px }
+.market-select select{ width:100%; padding:8px; margin-top:6px; background:#06101a; color:#eaf6ff; border-radius:8px }
+.timeframes button{ background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.03); padding:6px 8px; margin:4px; border-radius:6px }
+.timeframes button.active{ background:#091925; color:#fff }
+.connection{ font-size:13px; color:var(--muted) }
+.status.on{ color:var(--accent) }
+.status.off{ color:var(--muted) }
+.orderbook{ background:#08121a; border-radius:8px; padding:8px }
+.orderbook .ob-header{ color:var(--muted); font-size:12px; margin-bottom:8px }
+.orderbook .row{ display:flex; justify-content:space-between; font-size:13px; padding:4px 6px }
+.orderbook .ask{ color:#ffb3b3 }
+.orderbook .bid{ color:#b3ffcf }
+
+.chart-section{ flex:1; display:flex; flex-direction:column; gap:8px }
+.chart-toolbar{ display:flex; justify-content:space-between; align-items:center }
+.chart{ background:var(--panel); border-radius:8px; padding:8px }
+.trade-panel{ background:var(--panel); padding:12px; border-radius:8px; margin-top:8px }
+.trade-panel .tabs button{ padding:8px 12px; border-radius:8px; margin-right:8px; background:transparent; color:var(--muted) }
+.trade-panel .tabs button.active{ background:#091925; color:#fff }
+.ticket-form .row{ display:flex; justify-content:space-between; align-items:center; margin:6px 0 }
+.ticket-form input{ width:140px; padding:8px; background:#06101a; border-radius:6px; border:1px solid rgba(255,255,255,0.03); color:#fff }
+.ticket-form .actions{ margin-top:8px }
+.ticket-form .submit{ padding:10px 16px; border-radius:8px; border:0; background:var(--accent); color:#01120a }
+.ticket-form .note{ font-size:12px; color:var(--muted); margin-top:8px }
+
+.dashboard-grid{ display:flex; gap:12px; flex-wrap:wrap }
+.card{ background:var(--panel); padding:12px; border-radius:8px; min-width:220px }
+.balance .val{ font-size:16px; margin-top:6px }
+.pos{ border-top:1px solid rgba(255,255,255,0.02); padding-top:8px; margin-top:8px }
+.hist{ font-size:13px; padding:6px 0 }
+
+.live-page ul{ color:var(--muted) }
+
+@media(max-width:900px){ .trade-page{ flex-direction:column } .left-panel{ width:100% } .chart{ height:360px } }

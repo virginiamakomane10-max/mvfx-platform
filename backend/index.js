@@ -23,9 +23,7 @@ app.use(cors());
 app.use(express.json());
 
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: '*' }
-});
+const io = new Server(server, { cors: { origin: '*' } });
 
 // Helper DB queries
 const createUser = (username, passwordHash) => {
@@ -90,7 +88,7 @@ app.post('/api/demo/order', auth, (req, res) => {
   const { symbol, side, price, quantity, sl, tp } = req.body;
   const acc = db.prepare('SELECT * FROM demo_accounts WHERE user_id = ?').get(req.user.userId);
   if (!acc) return res.status(400).json({ error: 'no demo account' });
-  // very simple execution: open position at price, status=open
+  // create open position
   const stmt = db.prepare('INSERT INTO demo_orders (account_id, symbol, side, price, quantity, sl, tp, status) VALUES (?, ?, ?, ?, ?, ?, ?, "open")');
   const info = stmt.run(acc.id, symbol, side, price, quantity, sl || null, tp || null);
   const order = db.prepare('SELECT * FROM demo_orders WHERE id = ?').get(info.lastInsertRowid);
@@ -99,7 +97,6 @@ app.post('/api/demo/order', auth, (req, res) => {
 
 // Simple endpoint for live trading placeholder
 app.post('/api/live/order', auth, (req, res) => {
-  // This is a placeholder. To enable real orders you must implement broker adapter and route orders to broker APIs.
   res.status(501).json({ error: 'Live trading not enabled. Integrate with a broker API and implement order routing.' });
 });
 
@@ -108,12 +105,10 @@ app.post('/api/assistant', auth, async (req, res) => {
   const { message } = req.body;
   if (!message) return res.status(400).json({ error: 'message required' });
   if (!OPENAI_KEY) {
-    // fallback simple assistant
     const text = fallbackAssistant(message);
     return res.json({ reply: text });
   }
   try {
-    // Proxy to OpenAI (if key present) — user must set key in env for production
     const r = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_KEY}` },
@@ -132,83 +127,141 @@ function fallbackAssistant(msg) {
   return "MVFX assistant: I can answer basic questions. For advanced AI please set OPENAI_API_KEY in backend .env to enable the LLM proxy.";
 }
 
-// Price fetcher & broadcaster
-const subscribers = new Set();
-
-async function fetchKlinesBinance(symbol = 'BTCUSDT', interval = '1m', limit = 200) {
-  try {
+// Price fetchers
+async function fetchKlinesBinance(symbol = 'BTCUSDT', interval = '1m', limit = 200){
+  try{
     const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
     const res = await fetch(url);
     const data = await res.json();
-    // map to OHLC with timestamp
-    return data.map(d => ({
-      t: d[0], o: parseFloat(d[1]), h: parseFloat(d[2]), l: parseFloat(d[3]), c: parseFloat(d[4]), v: parseFloat(d[5])
-    }));
-  } catch (e) { return null; }
+    return data.map(d=>({ t:d[0], o:parseFloat(d[1]), h:parseFloat(d[2]), l:parseFloat(d[3]), c:parseFloat(d[4]), v:parseFloat(d[5]) }));
+  }catch(e){ return null }
 }
 
-async function fetchKlinesAlpha(symbol = 'EURUSD', interval = '1min', outputsize = 'compact') {
+async function fetchKlinesAlpha(symbol = 'EURUSD', interval = '1min', outputsize = 'compact'){
   if (!ALPHA_KEY) return null;
-  try {
-    // Alpha Vantage uses FX_INTRADAY for FX and DIGITAL_CURRENCY for crypto; for XAUUSD we use FX or commodity endpoint (limited). Use TIME_SERIES_INTRADAY for FX via symbol pair e.g. EURUSD
+  try{
     const func = 'TIME_SERIES_INTRADAY';
     const url = `https://www.alphavantage.co/query?function=${func}&symbol=${symbol}&interval=1min&apikey=${ALPHA_KEY}&outputsize=${outputsize}`;
     const res = await fetch(url);
     const j = await res.json();
-    if (j['Time Series (1min)']) {
-      const items = Object.entries(j['Time Series (1min)']).map(([k, v]) => ({ t: new Date(k).getTime(), o: parseFloat(v['1. open']), h: parseFloat(v['2. high']), l: parseFloat(v['3. low']), c: parseFloat(v['4. close']), v: parseFloat(v['5. volume']) }));
+    if (j['Time Series (1min)']){
+      const items = Object.entries(j['Time Series (1min)']).map(([k,v])=>({ t:new Date(k).getTime(), o:parseFloat(v['1. open']), h:parseFloat(v['2. high']), l:parseFloat(v['3. low']), c:parseFloat(v['4. close']), v:parseFloat(v['5. volume']) }));
       return items.reverse();
     }
     return null;
-  } catch (e) { return null; }
+  }catch(e){ return null }
 }
 
-// Poll loop
-const TRACK = [
-  { symbol: 'BTCUSDT', source: 'binance', interval: '1m' },
-  { symbol: 'ETHUSDT', source: 'binance', interval: '1m' },
-  { symbol: 'XAUUSD', source: 'alpha', interval: '1min' },
-  { symbol: 'EURUSD', source: 'alpha', interval: '1min' }
-];
-
-async function pollLoop() {
-  for (const t of TRACK) {
-    let klines = null;
-    if (t.source === 'binance') klines = await fetchKlinesBinance(t.symbol, '1m', 200);
-    if (t.source === 'alpha') klines = await fetchKlinesAlpha(t.symbol.replace('/', ''), '1min', 'compact');
-    if (!klines) {
-      // fallback to synthetic small random walk
-      klines = generateSynthetic(t.symbol);
-    }
-    // broadcast latest candle
-    const latest = klines[klines.length - 1];
-    io.emit('price', { symbol: t.symbol, candle: latest });
-  }
+async function fetchOrderBookBinance(symbol='BTCUSDT', limit=50){
+  try{
+    const url = `https://api.binance.com/api/v3/depth?symbol=${symbol}&limit=${limit}`;
+    const res = await fetch(url);
+    const j = await res.json();
+    return { bids: j.bids.map(b=>({ price: parseFloat(b[0]), qty: parseFloat(b[1]) })), asks: j.asks.map(a=>({ price: parseFloat(a[0]), qty: parseFloat(a[1]) })), source: 'binance' };
+  }catch(e){ return null }
 }
 
-function generateSynthetic(symbol) {
+function generateSyntheticBook(symbol){
+  const mid = 100 + Math.random()*100;
+  const bids = [], asks = [];
+  for(let i=0;i<30;i++){ bids.push({ price: mid - i*0.1 - Math.random()*0.05, qty: Math.random()*5 }); asks.push({ price: mid + i*0.1 + Math.random()*0.05, qty: Math.random()*5 }); }
+  return { bids, asks, source: 'synthetic' };
+}
+
+// Expose klines and orderbook endpoints
+app.get('/api/klines', async (req,res)=>{
+  const symbol = req.query.symbol || 'BTCUSDT';
+  const interval = req.query.interval || '1m';
+  const limit = parseInt(req.query.limit||'200');
+  let klines = null;
+  if (symbol.endsWith('USDT') || symbol.endsWith('BTC')) klines = await fetchKlinesBinance(symbol, interval, limit);
+  else klines = await fetchKlinesAlpha(symbol.replace('/',''), interval, 'compact');
+  if (!klines) klines = generateSyntheticKlines(symbol);
+  res.json({ klines });
+});
+
+app.get('/api/orderbook', async (req,res)=>{
+  const symbol = req.query.symbol || 'BTCUSDT';
+  let ob = await fetchOrderBookBinance(symbol, 100);
+  if (!ob) ob = generateSyntheticBook(symbol);
+  res.json(ob);
+});
+
+function generateSyntheticKlines(symbol){
   const now = Date.now();
-  const base = 100 + Math.random() * 100;
+  const base = 100 + Math.random()*100;
   const items = [];
-  for (let i = 0; i < 60; i++) {
-    const t = now - (60 - i) * 60000;
-    const o = base + Math.sin(i / 5) + Math.random();
-    const c = o + (Math.random() - 0.5) * 2;
-    const h = Math.max(o, c) + Math.random();
-    const l = Math.min(o, c) - Math.random();
-    items.push({ t, o, h, l, c, v: Math.random() * 10 });
+  for(let i=0;i<200;i++){
+    const t = now - (200-i)*60000;
+    const o = base + Math.sin(i/5) + Math.random();
+    const c = o + (Math.random()-0.5)*2;
+    const h = Math.max(o,c)+Math.random();
+    const l = Math.min(o,c)-Math.random();
+    items.push({ t, o, h, l, c, v: Math.random()*10 });
   }
   return items;
+}
+
+// Poll loop: broadcast latest candles and update demo P&L
+const TRACK = [ { symbol: 'BTCUSDT', source: 'binance', interval: '1m' }, { symbol: 'ETHUSDT', source: 'binance', interval: '1m' }, { symbol: 'XAUUSD', source: 'alpha', interval: '1min' }, { symbol: 'EURUSD', source: 'alpha', interval: '1min' } ];
+
+async function pollLoop(){
+  for(const t of TRACK){
+    let klines = null;
+    if (t.source === 'binance') klines = await fetchKlinesBinance(t.symbol, '1m', 2);
+    if (t.source === 'alpha') klines = await fetchKlinesAlpha(t.symbol.replace('/',''), '1min', 'compact');
+    if (!klines) klines = generateSyntheticKlines(t.symbol);
+    const latest = klines[klines.length-1];
+    io.emit('price', { symbol: t.symbol, candle: latest });
+  }
+  // Update demo orders unrealized P&L and equity
+  try{
+    const openOrders = db.prepare('SELECT o.*, a.balance FROM demo_orders o JOIN demo_accounts a ON o.account_id = a.id WHERE o.status = "open"').all();
+    const priceMap = {};
+    for(const t of TRACK){
+      // fetch current price (last close)
+      let kl = null;
+      if (t.source === 'binance') kl = await fetchKlinesBinance(t.symbol, '1m', 2);
+      else kl = await fetchKlinesAlpha(t.symbol.replace('/',''), '1min', 'compact');
+      const last = kl ? kl[kl.length-1].c : null;
+      priceMap[t.symbol] = last;
+    }
+    for(const o of openOrders){
+      const current = priceMap[o.symbol] || null;
+      if (!current) continue;
+      let profit = 0;
+      if (o.side === 'buy') profit = (current - o.price) * o.quantity;
+      else profit = (o.price - current) * o.quantity;
+      // check SL/TP
+      let close = false; let newStatus = o.status;
+      if (o.sl && ((o.side==='buy' && current <= o.sl) || (o.side==='sell' && current >= o.sl))) close = true, newStatus = 'closed_sl';
+      if (o.tp && ((o.side==='buy' && current >= o.tp) || (o.side==='sell' && current <= o.tp))) close = true, newStatus = 'closed_tp';
+      // update order profit
+      db.prepare('UPDATE demo_orders SET profit = ? WHERE id = ?').run(profit, o.id);
+      if (close){
+        db.prepare('UPDATE demo_orders SET status = ?, profit = ? WHERE id = ?').run(newStatus, profit, o.id);
+        // apply to account balance
+        const acc = db.prepare('SELECT * FROM demo_accounts WHERE id = ?').get(o.account_id);
+        const newBal = acc.balance + profit;
+        db.prepare('UPDATE demo_accounts SET balance = ?, equity = ? WHERE id = ?').run(newBal, newBal, acc.id);
+      } else {
+        // update equity = balance + sum(open profits)
+        const openSum = db.prepare('SELECT SUM(profit) as s FROM demo_orders WHERE account_id = ? AND status = "open"').get(o.account_id).s || 0;
+        const acc = db.prepare('SELECT * FROM demo_accounts WHERE id = ?').get(o.account_id);
+        db.prepare('UPDATE demo_accounts SET equity = ? WHERE id = ?').run(acc.balance + openSum, acc.id);
+      }
+    }
+  }catch(e){ console.warn('demo update error', e) }
 }
 
 setInterval(pollLoop, POLL_INTERVAL_MS);
 
 io.on('connection', (socket) => {
   console.log('ws connected', socket.id);
-  socket.on('subscribe', (sym) => { subscribers.add(socket.id); });
-  socket.on('disconnect', () => { subscribers.delete(socket.id); });
+  socket.on('subscribe', (sym) => { /* we don't track per-socket in this simple starter */ });
+  socket.on('disconnect', () => { /* */ });
 });
 
-app.get('/api/ping', (req, res) => res.json({ ok: true }));
+app.get('/api/ping', (req,res) => res.json({ ok:true, binance: true, alpha: !!ALPHA_KEY }));
 
 server.listen(PORT, () => console.log('MVFX backend running on', PORT));

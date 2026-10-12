@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MVFX logo">
+  <rect width="200" height="200" rx="20" fill="#071827"/>
+  <g transform="translate(40,40)">
+    <circle cx="60" cy="60" r="40" fill="#0b1220" stroke="#28a745" stroke-width="4"/>
+    <path d="M30 80 L60 30 L90 80 Z" fill="#28a745"/>
+    <rect x="54" y="50" width="12" height="24" rx="3" fill="#071827"/>
+  </g>
+</svg>
