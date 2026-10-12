@@ -7,7 +7,7 @@ This repository contains a working starter app you can run locally and deploy. I
 Important notes:
 - Demo trading uses simulated funds and is clearly labelled in the UI.
 - Live charts can use genuine market data. Configure API keys (see below) to enable real feeds for Forex & XAUUSD.
-- This starter does NOT execute real-money trades. Order execution and payment processing require third-party broker integrations and regulatory approvals (see ARCHITECTURE.md).
+- This starter does NOT execute real-money trades. Order execution and payment processing require third-party broker integrations and regulatory approvals (see LIVE_TRADING.md and ARCHITECTURE.md).
 
 Quick start (development):
 
@@ -30,9 +30,13 @@ Quick start (development):
 
 Open http://localhost:5173 (frontend) and the backend runs on http://localhost:4000
 
-Config & optional API keys (to enable genuine market data):
-- BINANCE (crypto): no API key needed for public kline REST endpoints. The backend fetches Binance klines for crypto by default.
-- ALPHA_VANTAGE (Forex & XAUUSD): set ALPHA_VANTAGE_KEY in backend/.env to use Alpha Vantage intraday klines. Free tier available but limited rate.
-- OPENAI_API_KEY: optional; if set in backend/.env, the AI assistant will proxy requests to OpenAI. If not set, a local fallback assistant answers simple questions.
+Preview on Android phone:
+- With the backend and frontend running locally, make sure your machine and phone are on the same network.
+- Update web/.env VITE_BACKEND_URL and VITE_WS_URL to `http://<your-computer-ip>:4000`.
+- Run `npm run dev` in the web folder and open the printed URL (vite shows a LAN URL) on your Android browser.
 
-See ARCHITECTURE.md for details about what is required to activate live trading.
+Free hosting summary (short):
+- Frontend (static): Vercel, Netlify or GitHub Pages (all support free hosting of the built SPA).
+- Backend: Railway, Render or Fly offer free starter tiers; check provider terms and select the one that fits. Keep credentials and environment values secret.
+
+See LIVE_TRADING.md for a complete list of steps, legal and security requirements to enable genuine live trading and broker integrations.

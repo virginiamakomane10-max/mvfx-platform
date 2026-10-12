@@ -4,11 +4,10 @@ import io from 'socket.io-client'
 import axios from 'axios'
 import OrderBook from './OrderBook'
 import TradePanel from './TradePanel'
+import Watchlist from './Watchlist'
 
 const WS = import.meta.env.VITE_WS_URL || 'http://localhost:4000'
 const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'
-
-const TF_MAP = { '1m':'1m','5m':'5m','15m':'15m','30m':'30m','1h':'1h' }
 
 function isCrypto(sym){
   return /USDT$|BTC$|ETH$/.test(sym)
@@ -95,14 +94,17 @@ export default function ChartView({ token }){
   return (
     <div className="trade-page">
       <aside className="left-panel">
-        <div className="market-select">
-          <label>Market</label>
-          <select value={symbol} onChange={e => setSymbol(e.target.value)}>
-            <option value="BTCUSDT">BTC/USDT</option>
-            <option value="ETHUSDT">ETH/USDT</option>
-            <option value="XAUUSD">Gold XAU/USD</option>
-            <option value="EURUSD">EUR/USD</option>
-          </select>
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          <Watchlist onSelect={setSymbol} />
+          <div className="market-select">
+            <label>Market</label>
+            <select value={symbol} onChange={e => setSymbol(e.target.value)}>
+              <option value="BTCUSDT">BTC/USDT</option>
+              <option value="ETHUSDT">ETH/USDT</option>
+              <option value="XAUUSD">Gold XAU/USD</option>
+              <option value="EURUSD">EUR/USD</option>
+            </select>
+          </div>
         </div>
         <div className="timeframes">
           {['1m','5m','15m','30m','1h'].map(tf => <button key={tf} className={timeframe===tf? 'active':''} onClick={()=>setTimeframe(tf)}>{tf.toUpperCase()}</button>)}
